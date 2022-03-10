@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "pnpm -r exec vite",
+    "dev": "pnpm -r run dev",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

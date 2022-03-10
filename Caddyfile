@@ -1,0 +1,32 @@
+localhost:2026 {
+  log {
+    level INFO
+    output file ./caddy.log {
+      roll_size 10MB
+      roll_keep 10
+    }
+  }
+
+  tls internal
+  encode gzip
+
+  handle_path /static/* {
+    root ./scripts
+    file_server
+  }
+}
+
+localhost:4001 {
+  log {
+    level INFO
+    output file ./caddy.log {
+      roll_size 10MB
+      roll_keep 10
+    }
+  }
+
+  tls internal
+  encode gzip
+
+  reverse_proxy localhost:3001
+}
