@@ -1,9 +1,9 @@
 {
-  "name": "app-starter",
+  "name": "app-b",
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "pnpm -r exec vite",
+    "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
