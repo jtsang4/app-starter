@@ -1,5 +1,9 @@
+// TODO: 根据真实业务规则修改代理端口
 function getPort() {
-  return '4001'
+  if (window.location.pathname.startsWith('/foo')) {
+    return '4001'
+  }
+  return '4002'
 }
 
 function getOrigin(https) {
@@ -7,6 +11,7 @@ function getOrigin(https) {
 }
 
 function setupDevPort() {
+  window.__DEV_HMR_HOSTNAME = 'localhost'
   window.__DEV_HMR_PORT__ = getPort()
 }
 
