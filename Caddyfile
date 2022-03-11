@@ -16,6 +16,7 @@ localhost:2026 {
   }
 }
 
+# 对于 HTTPS 的开发环境，使用反代后的 dev server
 localhost:4001 {
   log {
     level INFO
@@ -29,4 +30,20 @@ localhost:4001 {
   encode gzip
 
   reverse_proxy localhost:3001
+}
+
+# 对于 HTTPS 的开发环境，使用反代后的 dev server
+localhost:4002 {
+  log {
+    level INFO
+    output file ./caddy.log {
+      roll_size 10MB
+      roll_keep 10
+    }
+  }
+
+  tls internal
+  encode gzip
+
+  reverse_proxy localhost:3002
 }

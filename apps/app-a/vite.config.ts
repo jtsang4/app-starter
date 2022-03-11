@@ -6,8 +6,6 @@ import { dyncmicClient } from 'vite-plugins'
 export default defineConfig({
   server: {
     port: 3001,
-    cors: true,
-    origin: 'https://localhost:2026/',
   },
   plugins: [react(), dyncmicClient({})],
 })
