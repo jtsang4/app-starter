@@ -26,7 +26,6 @@
     "stylelint": "^14.5.3",
     "turbo": "^1.1.4",
     "typescript": "^4.5.4",
-    "vite": "^2.8.0",
-    "vite-plugins": "workspace:^1.0.0"
+    "vite": "^2.8.0"
   }
 }
