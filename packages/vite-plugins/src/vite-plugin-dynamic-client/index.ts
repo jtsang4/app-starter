@@ -10,7 +10,7 @@ const normalizedClientEntry = normalizePath(CLIENT_ENTRY)
 const normalizedEnvEntry = normalizePath(ENV_ENTRY)
 
 type UserOptions = {
-  port: number
+  port?: number
 }
 
 export default function VitePluginDynamicClient(
@@ -23,7 +23,7 @@ export default function VitePluginDynamicClient(
       if ([normalizedClientEntry, normalizedEnvEntry].includes(id)) {
         return code.replace(
           /__HMR_PORT__/g,
-          ` "${userOptions.port}" || __HMR_PORT__`,
+          ` "${userOptions.port ? userOptions.port : ''}" || window.__DEV_HMR_PORT__ || __HMR_PORT__`,
         )
       }
     },

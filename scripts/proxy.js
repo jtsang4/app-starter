@@ -6,6 +6,10 @@ function getOrigin(https) {
   return `http${https ? 's' : ''}://localhost:${getPort()}`
 }
 
+function setupDevPort() {
+  window.__DEV_HMR_PORT__ = getPort()
+}
+
 function appendViteScript() {
   const viteClientScript = document.createElement('script')
   viteClientScript.type = 'module'
@@ -32,5 +36,6 @@ function appendEntry() {
   document.body.appendChild(entryScript)
 }
 
+setupDevPort()
 appendViteScript()
 appendEntry()

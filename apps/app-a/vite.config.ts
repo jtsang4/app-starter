@@ -9,5 +9,5 @@ export default defineConfig({
     cors: true,
     origin: 'https://localhost:2026/',
   },
-  plugins: [react(), dyncmicClient({ port: 4001 })],
+  plugins: [react(), dyncmicClient({})],
 })
