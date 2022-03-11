@@ -1,9 +1,10 @@
+# 为控制反代的 JS 文件启用静态资源服务器
 localhost:2026 {
   log {
     level INFO
     output file ./caddy.log {
-      roll_size 10MB
-      roll_keep 10
+      roll_size 0.2MB
+      roll_keep 1
     }
   }
 
@@ -21,8 +22,8 @@ localhost:4001 {
   log {
     level INFO
     output file ./caddy.log {
-      roll_size 10MB
-      roll_keep 10
+      roll_size 0.2MB
+      roll_keep 1
     }
   }
 
@@ -37,8 +38,8 @@ localhost:4002 {
   log {
     level INFO
     output file ./caddy.log {
-      roll_size 10MB
-      roll_keep 10
+      roll_size 0.2MB
+      roll_keep 1
     }
   }
 
