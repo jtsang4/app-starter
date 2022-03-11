@@ -5,7 +5,7 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "pnpm -r run dev --filter='app*'",
-    "build": "tsc && vite build",
+    "build": "pnpm -r run build --filter='app*'",
     "preview": "vite preview"
   },
   "dependencies": {
