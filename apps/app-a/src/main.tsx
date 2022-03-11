@@ -5,5 +5,5 @@ ReactDOM.render(
   <React.StrictMode>
     <div>test page a</div>
   </React.StrictMode>,
-  document.getElementById('root')
+  document.getElementById('root'),
 )

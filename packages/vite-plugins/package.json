@@ -1,0 +1,39 @@
+{
+  "name": "vite-plugins",
+  "version": "1.0.0",
+  "description": "MX vite plugins",
+  "keywords": [],
+  "private": true,
+  "license": "ISC",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "rimraf dist && unbuild",
+    "dev": "unbuild --stub",
+    "lint": "eslint .",
+    "prepublishOnly": "nr build",
+    "release": "bumpp --commit --push --tag && pnpm publish",
+    "start": "esno src/index.ts",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@antfu/ni": "^0.13.2",
+    "bumpp": "^7.1.1",
+    "esno": "^0.13.0",
+    "rimraf": "^3.0.2",
+    "unbuild": "^0.7.0",
+    "vitest": "^0.6.0"
+  }
+}

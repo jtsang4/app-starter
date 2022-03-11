@@ -1,5 +1,6 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import dynamicClient from '../../vite-plugins/vite-plugin-dynamic-client'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -9,4 +10,4 @@ export default defineConfig({
     origin: 'https://localhost:2026/',
   },
   plugins: [react()],
-});
+})
