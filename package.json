@@ -1,5 +1,5 @@
 {
-  "name": "app-starter",
+  "name": "mono-app-starter",
   "private": true,
   "packageManager": "pnpm@6.32.3",
   "version": "0.0.0",
