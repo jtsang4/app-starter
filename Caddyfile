@@ -10,6 +10,8 @@ localhost:2026 {
 
   tls internal
   encode gzip
+  header Access-Control-Allow-Origin *
+  header Cache-Control "no-cache, no-store, must-revalidate"
 
   handle_path /static/* {
     root ./scripts
