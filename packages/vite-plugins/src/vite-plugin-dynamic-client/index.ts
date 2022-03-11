@@ -1,3 +1,6 @@
+/**
+ * 本插件用于 vite dev server WebSocket client 端口的篡改，方便开发时进行反向代理
+ */
 import type { PluginOption } from 'vite'
 import { normalizePath } from 'vite'
 
@@ -20,7 +23,7 @@ export default function VitePluginDynamicClient(
       if ([normalizedClientEntry, normalizedEnvEntry].includes(id)) {
         return code.replace(
           /__HMR_PORT__/g,
-          `__HMR_PORT__ || "${userOptions.port}"`,
+          ` "${userOptions.port}" || __HMR_PORT__`,
         )
       }
     },

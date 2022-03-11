@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import dynamicClient from '../../vite-plugins/vite-plugin-dynamic-client'
+import { dyncmicClient } from 'vite-plugins'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -9,5 +9,5 @@ export default defineConfig({
     cors: true,
     origin: 'https://localhost:2026/',
   },
-  plugins: [react()],
+  plugins: [react(), dyncmicClient({ port: 4001 })],
 })
