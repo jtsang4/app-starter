@@ -1,0 +1,3 @@
+{
+  "extends": "@jtsang/stylelint-config"
+}
