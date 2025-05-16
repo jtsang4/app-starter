@@ -109,6 +109,7 @@ The following features are planned for future implementation:
 
 1. **User Authentication** - Add authentication capabilities
 2. **UI Framework Integration** - Initialize a UI component framework
+3. **Docker Deployment** - Add Dockerfile to support containerized deployment
 
 ## Deployment
 
