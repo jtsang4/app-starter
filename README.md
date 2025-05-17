@@ -5,7 +5,9 @@ A modern full-stack application scaffold template with the latest technologies f
 ## Tech Stack
 
 - **Frontend**: [Next.js 15](https://nextjs.org/) with App Router and React 19
+- **UI Framework**: [Ant Design](https://ant.design/) for beautiful, responsive UI components
 - **Styling**: [Tailwind CSS 4](https://tailwindcss.com/) for utility-first styling
+- **Authentication**: [Better Auth](https://github.com/better-auth/better-auth) for secure user authentication
 - **Database**: PostgreSQL with [Drizzle ORM](https://orm.drizzle.team/) for type-safe database access
 - **AI Integration**: [AI SDK](https://sdk.vercel.ai/docs) for OpenAI integration
 - **Development Tools**:
@@ -16,6 +18,8 @@ A modern full-stack application scaffold template with the latest technologies f
 ## Features
 
 - Modern React with the latest Next.js App Router
+- Beautiful UI components with Ant Design
+- Complete authentication system with login, registration, and session management
 - Type-safe database operations with Drizzle ORM
 - AI integration ready with OpenAI SDK
 - PostgreSQL database with Docker setup
@@ -88,13 +92,31 @@ This template uses Drizzle ORM with PostgreSQL. The following commands are avail
 
 This template includes the AI SDK for easy integration with OpenAI. Set your API keys in the `.env` file to get started.
 
+## Authentication
+
+This template includes a complete authentication system using Better Auth:
+
+- Email and password authentication
+- User registration and login
+- Session management
+- Protected routes
+- Server-side authentication utilities
+- Client-side hooks and components
+
 ## Project Structure
 
 ```
 app-starter/
 ├── src/
 │   ├── app/           # Next.js App Router pages and layouts
+│   │   ├── api/       # API routes including authentication endpoints
+│   │   ├── login/     # Login page
+│   │   └── register/  # Registration page
+│   ├── component/     # React components
+│   │   ├── auth/      # Authentication components
 │   ├── config/        # Application configuration
+│   ├── lib/           # Utility libraries
+│   │   └── auth/      # Authentication utilities
 │   └── db/
 │       └── schema/    # Database schema definitions
 ├── public/            # Static assets
