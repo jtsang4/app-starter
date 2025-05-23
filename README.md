@@ -125,14 +125,55 @@ app-starter/
 └── .env.example       # Example environment variables
 ```
 
-## TODO
+## Docker Deployment
 
-The following features are planned for future implementation:
+This template includes Docker support for containerized deployment. The Dockerfile supports multiple package managers including Bun, Yarn, npm, and pnpm.
 
-1. **Docker Deployment** - Add Dockerfile to support containerized deployment
+### Building the Docker Image
+
+```bash
+docker build -t app-starter .
+```
+
+### Running with Docker Compose
+
+1. Copy the example environment variables:
+
+```bash
+cp .env.example .env
+```
+
+2. Update the `.env` file with your production values, especially:
+
+   - `DATABASE_URL`: Your production database connection string
+   - `BETTER_AUTH_SECRET`: A strong random secret for authentication
+
+3. Start the application with Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+This will start both the application and a PostgreSQL database.
+
+### Environment Variables in Docker
+
+The Docker build process uses placeholder environment variables during the build phase to prevent build failures. Real environment variables should be provided at runtime through:
+
+- Docker Compose environment section
+- Docker run `-e` flags
+- External environment files
+- Container orchestration platforms (Kubernetes, etc.)
+
+**Important**: Never include real secrets in the Docker image. Always provide them at runtime.
 
 ## Deployment
 
-You can deploy this application to any platform that supports Next.js, such as Vercel, Netlify, or your own server.
+You can deploy this application to:
+
+- **Docker**: Use the included Dockerfile and docker-compose.yml
+- **Vercel**: Deploy directly from your Git repository
+- **Netlify**: Deploy with build command `npm run build`
+- **Your own server**: Use Docker or build and run with Node.js
 
 For more information on deployment, check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying).

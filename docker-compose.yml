@@ -1,0 +1,39 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      # Database connection
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/app
+      
+      # Authentication
+      BETTER_AUTH_SECRET: your-production-secret-here-change-me
+      
+      # App configuration
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      AUTH_SERVER_URL: http://localhost:3000
+      
+      # Optional: OpenAI configuration
+      # OPENAI_API_KEY: your-openai-api-key
+      # OPENAI_BASE_URL: https://api.openai.com/v1
+      # OPENAI_API_HOST: api.openai.com
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15
+    container_name: app-postgres-prod
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: app
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

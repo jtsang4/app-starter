@@ -24,6 +24,11 @@ export const auth = betterAuth({
     },
   }),
 
+  // Authentication secret - required for encryption and security
+  secret:
+    process.env.BETTER_AUTH_SECRET ||
+    'build-time-placeholder-secret-do-not-use-in-production',
+
   // Enable email and password authentication
   emailAndPassword: {
     enabled: true,
@@ -41,8 +46,8 @@ export const auth = betterAuth({
     expiresIn: 7 * 24 * 60 * 60,
   },
 
-  // Base URL for auth endpoints
-  baseURL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4023',
+  // Use AUTH_SERVER_URL if provided, otherwise use the same domain
+  baseURL: process.env.AUTH_SERVER_URL || 'http://localhost:4023',
 
   // Advanced configuration
   advanced: {

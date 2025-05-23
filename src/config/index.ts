@@ -3,17 +3,37 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 class Config {
-  DATABASE_URL: string;
-  NEXT_PUBLIC_APP_URL: string;
-  constructor() {
-    this.DATABASE_URL = process.env.DATABASE_URL || '';
-    if (!this.DATABASE_URL) {
-      throw new Error('Environment variable DATABASE_URL is not set');
+  private _DATABASE_URL: string | null = null;
+
+  get DATABASE_URL(): string {
+    if (this._DATABASE_URL === null) {
+      this._DATABASE_URL = process.env.DATABASE_URL || '';
+
+      // Only enforce DATABASE_URL in production runtime, not during build
+      if (
+        !this._DATABASE_URL &&
+        process.env.NODE_ENV === 'production' &&
+        !this.isBuildTime()
+      ) {
+        throw new Error('Environment variable DATABASE_URL is not set');
+      }
+
+      // Provide a build-time placeholder for development
+      if (!this._DATABASE_URL && this.isBuildTime()) {
+        this._DATABASE_URL =
+          'postgres://build-placeholder:build-placeholder@build-placeholder:5432/build-placeholder';
+      }
     }
-    this.NEXT_PUBLIC_APP_URL = process.env.NEXT_PUBLIC_APP_URL || '';
-    if (!this.NEXT_PUBLIC_APP_URL) {
-      throw new Error('Environment variable NEXT_PUBLIC_APP_URL is not set');
-    }
+    return this._DATABASE_URL;
+  }
+
+  private isBuildTime(): boolean {
+    // Check if we're in a build context
+    return (
+      process.env.NEXT_PHASE === 'phase-production-build' ||
+      process.env.NODE_ENV !== 'production' ||
+      process.argv.includes('build')
+    );
   }
 }
 
