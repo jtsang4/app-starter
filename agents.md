@@ -45,3 +45,8 @@ This document outlines the coding conventions and preferences used in this proje
 - Always check the official TailwindCSS 4 documentation at https://tailwindcss.com/docs or use Context7 tool
 - Use the upgrade guide at https://tailwindcss.com/docs/upgrade-guide for migration references
 - Verify utility names and syntax against v4 documentation before implementation
+
+# Authentication and Session Management
+
+- Replace mock user IDs with real user authentication using better-auth.com's approach, particularly in Next.js context.
+- Don't use mock user IDs in the code; instead directly obtain the real user ID from the authentication system.
