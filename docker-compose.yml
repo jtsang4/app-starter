@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
 
   postgres:
-    image: postgres:15
+    image: postgres:17
     container_name: app-postgres-prod
     environment:
       POSTGRES_USER: postgres
