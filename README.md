@@ -131,6 +131,8 @@ This template includes Docker support for containerized deployment. The Dockerfi
 
 ### Building the Docker Image
 
+When build Docker image, please run `bun run db:generate` first.
+
 ```bash
 docker build -t app-starter .
 ```

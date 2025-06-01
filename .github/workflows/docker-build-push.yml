@@ -1,0 +1,172 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    tags:
+      # Only trigger on semantic version tags (vX.Y.Z, e.g., v1.0.0, v2.1.3)
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*' # Also support pre-release tags like v1.0.0-beta.1
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  validate-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
+      is_valid: ${{ steps.validate.outputs.is_valid }}
+    steps:
+      - name: Extract version from tag
+        id: extract_version
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "version=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Extracted version: $TAG_NAME"
+
+      - name: Validate semantic version format
+        id: validate
+        run: |
+          VERSION="${{ steps.extract_version.outputs.version }}"
+          # Validate semantic version pattern (vX.Y.Z or vX.Y.Z-prerelease)
+          if [[ $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]; then
+            echo "is_valid=true" >> $GITHUB_OUTPUT
+            echo "✅ Valid semantic version: $VERSION"
+          else
+            echo "is_valid=false" >> $GITHUB_OUTPUT
+            echo "❌ Invalid semantic version format: $VERSION"
+            echo "Expected format: vX.Y.Z (e.g., v1.0.0, v2.1.3, v1.0.0-beta.1)"
+            exit 1
+          fi
+
+  build-and-push:
+    needs: validate-tag
+    if: needs.validate-tag.outputs.is_valid == 'true'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # For OIDC token generation
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+          labels: |
+            org.opencontainers.image.title=${{ github.repository }}
+            org.opencontainers.image.description=App Starter Template
+            org.opencontainers.image.vendor=${{ github.repository_owner }}
+            org.opencontainers.image.version=${{ needs.validate-tag.outputs.version }}
+            org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.url=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Generate build summary
+        run: |
+          echo "## 🐳 Docker Image Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Build Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ needs.validate-tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: ${{ env.REGISTRY }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platforms**: linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Time**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🏷️ Image Tags" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Usage" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# Pull the image" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Or pull latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Verify image exists
+        run: |
+          echo "🔍 Verifying image was pushed successfully..."
+
+          # Wait a moment for the image to be available
+          sleep 10
+
+          # Try to pull the image to verify it exists
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-tag.outputs.version }}
+
+          if [ $? -eq 0 ]; then
+            echo "✅ Image verification successful!"
+            echo "Image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-tag.outputs.version }} is available"
+          else
+            echo "❌ Image verification failed!"
+            exit 1
+          fi
+
+  notify-completion:
+    needs: [validate-tag, build-and-push]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify success
+        if: needs.build-and-push.result == 'success'
+        run: |
+          echo "🎉 Docker image build and push completed successfully!"
+          echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-tag.outputs.version }}"
+          echo "🏷️ Also tagged as: latest"
+
+      - name: Notify failure
+        if: needs.build-and-push.result == 'failure'
+        run: |
+          echo "❌ Docker image build and push failed!"
+          echo "Please check the workflow logs for details."
+          echo "Common issues:"
+          echo "  - Docker build errors"
+          echo "  - Authentication problems"
+          echo "  - Network connectivity issues"
+          echo "  - Invalid Dockerfile syntax"
+          exit 1

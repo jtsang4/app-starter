@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from '@/db';
+import { config } from '@/config';
 import {
   usersTable,
   sessionsTable,
@@ -25,9 +26,7 @@ export const auth = betterAuth({
   }),
 
   // Authentication secret - required for encryption and security
-  secret:
-    process.env.BETTER_AUTH_SECRET ||
-    'build-time-placeholder-secret-do-not-use-in-production',
+  secret: config.BETTER_AUTH_SECRET,
 
   // Enable email and password authentication
   emailAndPassword: {
