@@ -135,19 +135,49 @@ jobs:
         run: |
           echo "🔍 Verifying image was pushed successfully..."
 
-          # Wait a moment for the image to be available
-          sleep 10
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-tag.outputs.version }}"
+          MAX_ATTEMPTS=6
+          WAIT_TIME=30
 
-          # Try to pull the image to verify it exists
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-tag.outputs.version }}
+          echo "📦 Target image: $IMAGE_TAG"
+          echo "⏱️ Will retry up to $MAX_ATTEMPTS times with $WAIT_TIME second intervals"
 
-          if [ $? -eq 0 ]; then
-            echo "✅ Image verification successful!"
-            echo "Image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-tag.outputs.version }} is available"
-          else
-            echo "❌ Image verification failed!"
-            exit 1
-          fi
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            echo ""
+            echo "🔄 Attempt $attempt/$MAX_ATTEMPTS: Checking image availability..."
+
+            # First try to inspect the manifest without pulling
+            if docker manifest inspect "$IMAGE_TAG" >/dev/null 2>&1; then
+              echo "✅ Manifest verification successful!"
+              echo "📋 Image manifest is available in registry"
+
+              # Also verify we can pull the image
+              echo "🔽 Attempting to pull image for final verification..."
+              if docker pull "$IMAGE_TAG" >/dev/null 2>&1; then
+                echo "✅ Image pull verification successful!"
+                echo "🎉 Image $IMAGE_TAG is fully available and pullable"
+                exit 0
+              else
+                echo "⚠️ Manifest exists but image pull failed, retrying..."
+              fi
+            else
+              echo "⏳ Image manifest not yet available, waiting..."
+            fi
+
+            if [ $attempt -lt $MAX_ATTEMPTS ]; then
+              echo "⏱️ Waiting $WAIT_TIME seconds before next attempt..."
+              sleep $WAIT_TIME
+            fi
+          done
+
+          echo ""
+          echo "❌ Image verification failed after $MAX_ATTEMPTS attempts!"
+          echo "🔍 Troubleshooting information:"
+          echo "  - Image: $IMAGE_TAG"
+          echo "  - This might be a temporary registry issue"
+          echo "  - Check the GitHub Packages page to see if the image was actually pushed"
+          echo "  - Multi-platform images can take longer to become available"
+          exit 1
 
       - name: Clean up build cache
         run: |
