@@ -74,11 +74,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=tag
-            type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
           labels: |
             org.opencontainers.image.title=${{ github.repository }}
             org.opencontainers.image.description=App Starter Template
@@ -165,17 +162,139 @@ jobs:
 
           echo "✅ Cache cleanup completed"
 
-  notify-completion:
+      - name: Trigger webhook
+        env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL || '' }}
+        run: |
+          echo "🔗 Checking webhook configuration..."
+
+          # Debug: Check if WEBHOOK_URL is set
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "ℹ️ WEBHOOK_URL secret is not configured, skipping webhook trigger"
+            echo "To configure: Go to Settings → Secrets and variables → Actions → New repository secret"
+            echo "Name: WEBHOOK_URL, Value: your webhook endpoint URL"
+            exit 0
+          fi
+
+          echo "✅ WEBHOOK_URL is configured"
+          echo "🔗 Triggering webhook notification to: ${WEBHOOK_URL:0:20}..."
+
+          # Prepare webhook payload
+          PAYLOAD=$(cat <<EOF
+          {
+            "event": "docker_build_complete",
+            "repository": "${{ github.repository }}",
+            "version": "${{ needs.validate-tag.outputs.version }}",
+            "image": "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-tag.outputs.version }}",
+            "commit": "${{ github.sha }}",
+            "ref": "${{ github.ref }}",
+            "actor": "${{ github.actor }}",
+            "workflow_run_id": "${{ github.run_id }}",
+            "timestamp": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",
+            "tags": $(echo '${{ steps.meta.outputs.tags }}' | jq -R 'split("\n") | map(select(length > 0))')
+          }
+          EOF
+          )
+
+          echo "📦 Payload preview:"
+          echo "$PAYLOAD" | jq '.'
+
+          # Send webhook request with verbose output for debugging
+          echo "🚀 Sending webhook request..."
+          HTTP_STATUS=$(curl -s -o /tmp/webhook_response.txt -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: GitHub-Actions/${{ github.run_id }}" \
+            -d "$PAYLOAD" \
+            --connect-timeout 30 \
+            --max-time 60 \
+            "$WEBHOOK_URL")
+
+          echo "📊 Webhook response status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✅ Webhook triggered successfully!"
+            echo "📄 Response body:"
+            cat /tmp/webhook_response.txt
+          else
+            echo "⚠️ Webhook request failed with status $HTTP_STATUS"
+            echo "📄 Response body:"
+            cat /tmp/webhook_response.txt
+            echo ""
+            echo "🔍 Debugging tips:"
+            echo "  - Check if the webhook URL is accessible"
+            echo "  - Verify the endpoint accepts POST requests with JSON payload"
+            echo "  - Check if there are any authentication requirements"
+            echo "  - Test the webhook URL manually with curl"
+            echo ""
+            echo "💡 Manual test command:"
+            echo "curl -X POST -H 'Content-Type: application/json' -d '{\"test\":\"message\"}' '$WEBHOOK_URL'"
+            echo ""
+            echo "Note: Webhook failure does not affect the workflow success"
+          fi
+
+  cleanup-old-versions:
     needs: [validate-tag, build-and-push]
+    if: needs.build-and-push.result == 'success'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Clean up old package versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}
+          package-type: 'container'
+          min-versions-to-keep: 5
+          delete-only-untagged-versions: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Clean up untagged versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}
+          package-type: 'container'
+          min-versions-to-keep: 0
+          delete-only-untagged-versions: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Cleanup summary
+        run: |
+          echo "🧹 Package cleanup completed!"
+          echo "✅ Kept latest 5 tagged versions"
+          echo "✅ Removed all untagged versions"
+          echo "📦 Package: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
+  notify-completion:
+    needs: [validate-tag, build-and-push, cleanup-old-versions]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Notify success
         if: needs.build-and-push.result == 'success'
+        env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL || '' }}
         run: |
           echo "🎉 Docker image build and push completed successfully!"
           echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate-tag.outputs.version }}"
           echo "🏷️ Also tagged as: latest"
+          if [ "${{ needs.cleanup-old-versions.result }}" == "success" ]; then
+            echo "🧹 Package cleanup completed successfully"
+          else
+            echo "⚠️ Package cleanup encountered issues (non-critical)"
+          fi
+          if [ -n "$WEBHOOK_URL" ]; then
+            echo "🔗 Webhook notification was triggered"
+          else
+            echo "ℹ️ No webhook configured (WEBHOOK_URL secret not set)"
+            echo "To configure webhook: Go to Settings → Secrets and variables → Actions → New repository secret"
+            echo "Name: WEBHOOK_URL, Value: your webhook endpoint URL"
+          fi
 
       - name: Notify failure
         if: needs.build-and-push.result == 'failure'
