@@ -242,16 +242,6 @@ jobs:
       packages: write
 
     steps:
-      - name: Clean up old package versions
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: ${{ github.event.repository.name }}
-          package-type: 'container'
-          min-versions-to-keep: 5
-          delete-only-untagged-versions: false
-          token: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-
       - name: Clean up untagged versions
         uses: actions/delete-package-versions@v5
         with:
@@ -262,11 +252,22 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
 
+      - name: Clean up old tagged versions (keep latest 10, preserve semantic versions)
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}
+          package-type: 'container'
+          min-versions-to-keep: 10
+          delete-only-untagged-versions: false
+          ignore-versions: '^v[0-9]+\.[0-9]+\.[0-9]+$'
+          token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
       - name: Cleanup summary
         run: |
           echo "🧹 Package cleanup completed!"
-          echo "✅ Kept latest 5 tagged versions"
           echo "✅ Removed all untagged versions"
+          echo "✅ Kept latest 10 tagged versions (preserving semantic versions)"
           echo "📦 Package: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
 
   notify-completion:
