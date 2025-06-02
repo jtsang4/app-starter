@@ -6,6 +6,7 @@ This document outlines the coding conventions and preferences used in this proje
 
 - When importing types in TypeScript, use the format 'import { type A, B } from ...' for mixed imports or 'import type { A, C } from ...' when importing only types.
 - User prefers using tsx instead of ts-node if they serve the same purpose to avoid duplicate dependencies.
+- Do not use template literals if interpolation and special-character handling are not needed.
 
 # React Conventions
 
