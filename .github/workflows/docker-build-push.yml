@@ -90,7 +90,7 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
@@ -98,8 +98,13 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Multi-layer caching strategy for optimal performance
+          cache-from: |
+            type=gha
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: |
+            type=gha,mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
@@ -146,6 +151,19 @@ jobs:
             echo "❌ Image verification failed!"
             exit 1
           fi
+
+      - name: Clean up build cache
+        run: |
+          echo "🧹 Cleaning up old build cache entries..."
+
+          # Clean up local buildx cache older than 7 days
+          docker buildx prune --filter until=168h --force || true
+
+          # Show remaining cache usage
+          echo "📊 Remaining cache usage:"
+          docker buildx du || true
+
+          echo "✅ Cache cleanup completed"
 
   notify-completion:
     needs: [validate-tag, build-and-push]

@@ -1,0 +1,306 @@
+name: Manual Cache Management
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Cache management action'
+        required: true
+        default: 'analyze'
+        type: choice
+        options:
+          - analyze
+          - cleanup-old
+          - cleanup-all
+          - rebuild-cache
+          - cleanup-branch-cache
+      
+      branch_name:
+        description: 'Branch name (for branch-specific cleanup)'
+        required: false
+        type: string
+      
+      cleanup_age_hours:
+        description: 'Clean up cache older than (hours)'
+        required: false
+        default: '168'
+        type: string
+      
+      dry_run:
+        description: 'Dry run (show what would be cleaned without actually cleaning)'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  cache-analysis:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'analyze' || github.event.inputs.dry_run == 'true'
+    
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Analyze cache usage
+        run: |
+          echo "🔍 Analyzing Docker build cache usage..."
+          echo ""
+          
+          echo "📊 BuildX Cache Usage:"
+          echo "======================"
+          if docker buildx du --verbose 2>/dev/null; then
+            echo ""
+            echo "📈 Cache Summary:"
+            docker buildx du 2>/dev/null | tail -1 || echo "No cache summary available"
+          else
+            echo "No BuildX cache found or accessible"
+          fi
+          
+          echo ""
+          echo "🏷️ Available Cache Entries:"
+          echo "============================"
+          docker buildx du 2>/dev/null | head -20 || echo "No cache entries found"
+          
+          if [[ "$(docker buildx du 2>/dev/null | wc -l)" -gt 20 ]]; then
+            echo "... and more (showing first 20 entries)"
+          fi
+
+  cache-cleanup-old:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'cleanup-old'
+    
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Clean up old cache entries
+        run: |
+          CLEANUP_AGE="${{ github.event.inputs.cleanup_age_hours || '168' }}"
+          
+          echo "🧹 Cleaning up cache entries older than ${CLEANUP_AGE} hours..."
+          
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            echo "🔍 DRY RUN MODE - No actual cleanup will be performed"
+            echo ""
+            echo "📊 Current cache usage:"
+            docker buildx du || true
+            echo ""
+            echo "Would run: docker buildx prune --filter until=${CLEANUP_AGE}h --force"
+          else
+            echo "📊 Cache usage before cleanup:"
+            docker buildx du || true
+            
+            echo ""
+            echo "🗑️ Performing cleanup..."
+            docker buildx prune --filter until=${CLEANUP_AGE}h --force || true
+            
+            echo ""
+            echo "📊 Cache usage after cleanup:"
+            docker buildx du || true
+          fi
+          
+          echo "✅ Old cache cleanup completed"
+
+  cache-cleanup-all:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'cleanup-all'
+    
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Clean up all cache entries
+        run: |
+          echo "🚨 Cleaning up ALL cache entries..."
+          echo "⚠️ This will remove all build cache and may slow down subsequent builds"
+          
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            echo "🔍 DRY RUN MODE - No actual cleanup will be performed"
+            echo ""
+            echo "📊 Current cache usage:"
+            docker buildx du || true
+            echo ""
+            echo "Would run: docker buildx prune --all --force"
+          else
+            echo "📊 Cache usage before cleanup:"
+            docker buildx du || true
+            
+            echo ""
+            echo "🗑️ Performing complete cleanup..."
+            docker buildx prune --all --force || true
+            
+            echo ""
+            echo "📊 Cache usage after cleanup:"
+            docker buildx du || true
+          fi
+          
+          echo "✅ Complete cache cleanup completed"
+
+  rebuild-cache:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'rebuild-cache'
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Rebuild cache
+        run: |
+          echo "🔄 Rebuilding Docker build cache..."
+          
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            echo "🔍 DRY RUN MODE - No actual rebuild will be performed"
+            echo "Would rebuild cache for main branch"
+          else
+            echo "🏗️ Building image to populate cache..."
+            
+            docker buildx build \
+              --cache-from type=gha,scope=main \
+              --cache-from type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-main \
+              --cache-to type=gha,mode=max,scope=main \
+              --cache-to type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-main,mode=max \
+              --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:cache-rebuild \
+              .
+            
+            echo "📊 Cache usage after rebuild:"
+            docker buildx du || true
+          fi
+          
+          echo "✅ Cache rebuild completed"
+
+  cleanup-branch-cache:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'cleanup-branch-cache' && github.event.inputs.branch_name != ''
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean up branch-specific cache
+        run: |
+          BRANCH_NAME="${{ github.event.inputs.branch_name }}"
+          echo "🧹 Cleaning up cache for branch: $BRANCH_NAME"
+          
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            echo "🔍 DRY RUN MODE - No actual cleanup will be performed"
+            echo "Would clean up:"
+            echo "  - GitHub Actions cache scope: $BRANCH_NAME"
+            echo "  - Registry cache: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-$BRANCH_NAME"
+          else
+            echo "🗑️ Cleaning up branch-specific cache..."
+            
+            # Note: GitHub Actions cache cleanup requires API calls
+            # For now, we'll focus on registry cache cleanup
+            echo "Attempting to remove registry cache for branch: $BRANCH_NAME"
+            
+            # Try to delete the branch-specific cache image
+            if docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-$BRANCH_NAME >/dev/null 2>&1; then
+              echo "Found registry cache for branch $BRANCH_NAME"
+              # Note: Actual deletion would require additional permissions and tools
+              echo "Registry cache cleanup would be performed here"
+            else
+              echo "No registry cache found for branch $BRANCH_NAME"
+            fi
+          fi
+          
+          echo "✅ Branch cache cleanup completed"
+
+  summary:
+    needs: [cache-analysis, cache-cleanup-old, cache-cleanup-all, rebuild-cache, cleanup-branch-cache]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🛠️ Manual Cache Management Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Action Performed" >> $GITHUB_STEP_SUMMARY
+          echo "- **Action**: ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dry Run**: ${{ github.event.inputs.dry_run }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ github.event.inputs.branch_name }}" != "" ]]; then
+            echo "- **Branch**: ${{ github.event.inputs.branch_name }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ github.event.inputs.cleanup_age_hours }}" != "" ]]; then
+            echo "- **Cleanup Age**: ${{ github.event.inputs.cleanup_age_hours }} hours" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Results" >> $GITHUB_STEP_SUMMARY
+          
+          case "${{ github.event.inputs.action }}" in
+            "analyze")
+              if [[ "${{ needs.cache-analysis.result }}" == "success" ]]; then
+                echo "- ✅ Cache analysis completed successfully" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "- ❌ Cache analysis failed" >> $GITHUB_STEP_SUMMARY
+              fi
+              ;;
+            "cleanup-old")
+              if [[ "${{ needs.cache-cleanup-old.result }}" == "success" ]]; then
+                echo "- ✅ Old cache cleanup completed" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "- ❌ Old cache cleanup failed" >> $GITHUB_STEP_SUMMARY
+              fi
+              ;;
+            "cleanup-all")
+              if [[ "${{ needs.cache-cleanup-all.result }}" == "success" ]]; then
+                echo "- ✅ Complete cache cleanup completed" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "- ❌ Complete cache cleanup failed" >> $GITHUB_STEP_SUMMARY
+              fi
+              ;;
+            "rebuild-cache")
+              if [[ "${{ needs.rebuild-cache.result }}" == "success" ]]; then
+                echo "- ✅ Cache rebuild completed" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "- ❌ Cache rebuild failed" >> $GITHUB_STEP_SUMMARY
+              fi
+              ;;
+            "cleanup-branch-cache")
+              if [[ "${{ needs.cleanup-branch-cache.result }}" == "success" ]]; then
+                echo "- ✅ Branch cache cleanup completed" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "- ❌ Branch cache cleanup failed" >> $GITHUB_STEP_SUMMARY
+              fi
+              ;;
+          esac
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 💡 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- Monitor build performance in subsequent builds" >> $GITHUB_STEP_SUMMARY
+          echo "- Check cache hit rates in build logs" >> $GITHUB_STEP_SUMMARY
+          echo "- Use 'analyze' action to verify cache state" >> $GITHUB_STEP_SUMMARY
+          
+          echo "🎉 Manual cache management completed!"

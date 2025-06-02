@@ -8,9 +8,11 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat curl bash
 WORKDIR /app
 
-# Install dependencies using the appropriate package manager
+# Install dependencies using the appropriate package manager with cache mounts
 COPY package.json bun.lock* bun.lockb* package-lock.json* .npmrc* ./
-RUN if [ -f bun.lock ] || [ -f bun.lockb ]; then \
+RUN --mount=type=cache,target=/root/.npm \
+  --mount=type=cache,target=/root/.cache/bun \
+  if [ -f bun.lock ] || [ -f bun.lockb ]; then \
   curl -fsSL https://bun.sh/install | bash && \
   export PATH="$HOME/.bun/bin:$PATH" && \
   bun install --frozen-lockfile; \
@@ -30,25 +32,30 @@ COPY . .
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
 # Uncomment the following line in case you want to disable telemetry during the build.
-# ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Set build-time environment variables to prevent build failures
 # These are placeholder values that will be overridden at runtime
 ENV DATABASE_URL="postgres://build-placeholder:build-placeholder@build-placeholder:5432/build-placeholder"
 ENV BETTER_AUTH_SECRET="build-time-placeholder-secret-do-not-use-in-production"
 
-# Compile migration script to JavaScript
-RUN npx tsc --project scripts/tsconfig.json
+# Compile migration script to JavaScript with cache mount
+RUN --mount=type=cache,target=/root/.cache/typescript \
+  npx tsc --project scripts/tsconfig.json
 
-RUN npm run build
+# Build Next.js application with cache mount
+RUN --mount=type=cache,target=/app/.next/cache \
+  --mount=type=cache,target=/root/.npm \
+  npm run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
 
-# Install production dependencies
+# Install production dependencies with cache mount
 COPY package.json ./
-RUN npm install --production drizzle-orm pg
+RUN --mount=type=cache,target=/root/.npm \
+  npm install --production drizzle-orm pg
 
 ENV NODE_ENV=production
 # Uncomment the following line in case you want to disable telemetry during runtime.
