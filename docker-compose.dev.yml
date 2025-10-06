@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # 开发环境 PostgreSQL 数据库
+  postgres:
+    image: postgres:18-alpine
+    container_name: app-starter-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-appstarter_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - app_starter_postgres_dev_data:/var/lib/postgresql/data
+      - ./init-dev.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5433:5432"  # 使用不同端口避免冲突
+    networks:
+      - app-starter-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-appstarter}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 开发环境 Redis (可选)
+  redis:
+    image: redis:7-alpine
+    container_name: app-starter-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - app_starter_redis_dev_data:/data
+    ports:
+      - "6380:6379"  # 使用不同端口避免冲突
+    networks:
+      - app-starter-dev-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  app_starter_postgres_dev_data:
+    driver: local
+  app_starter_redis_dev_data:
+    driver: local
+
+networks:
+  app-starter-dev-network:
+    driver: bridge

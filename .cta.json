@@ -1,5 +1,5 @@
 {
-  "projectName": "contract-guard",
+  "projectName": "app-starter",
   "mode": "file-router",
   "typescript": true,
   "tailwind": true,

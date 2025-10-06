@@ -41,3 +41,18 @@ import type { ComponentProps, ReactNode } from "react";
 - **Better IDE support**: Enables more accurate auto-completion and refactoring
 
 **Note:** This rule applies to all imports, including type imports. Always import specific types rather than using `import type * as`.
+
+### Layout and styles
+
+1. General Principles
+
+* Single Codebase Reuse: Share the same HTML/CSS/JS codebase between desktop and mobile. Use media queries and component-based design for automatic adaptation. Prohibit maintaining separate mobile codebases, unless involving native integrations (e.g., PWA with App bridging).
+* Mobile-First Approach: Start designing baseline styles for the smallest screens (320px), then progressively enhance for desktop. Avoid desktop-first issues like style overrides.
+* Consistency and Accessibility: Maintain core interactions (e.g., code editing, AI chat) unchanged during layout shifts. Ensure WCAG 2.1 AA compliance (e.g., visible focus, touch-friendly).
+
+2. Breakpoint Definitions
+Use the following standard breakpoints (based on common device widths) in CSS media queries:
+
+* Mobile: ≤ 480px (baseline, single-column layout)
+* Tablet: 481px - 768px (dual-column or collapsible sidebar)
+* Desktop: ≥ 769px (multi-column, full toolbar)
